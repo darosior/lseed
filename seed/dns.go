@@ -23,15 +23,15 @@ type DnsServer struct {
 	netview    *NetworkView
 	listenAddr string
 	rootDomain string
-	realm int
+	realms []int
 }
 
-func NewDnsServer(netview *NetworkView, listenAddr, rootDomain string, realm int) *DnsServer {
+func NewDnsServer(netview *NetworkView, listenAddr, rootDomain string, realms []int) *DnsServer {
 	return &DnsServer{
 		netview:    netview,
 		listenAddr: listenAddr,
 		rootDomain: rootDomain,
-		realm: realm,
+		realms: realms,
 	}
 }
 
@@ -142,6 +142,15 @@ type DnsRequest struct {
 	node_id   string
 }
 
+func (ds *DnsServer) supportedRealm(realm int) (bool) {
+	for _, sup_realm := range ds.realms {
+		if realm == sup_realm {
+			return true
+		}
+	}
+	return false
+}
+
 func (ds *DnsServer) parseRequest(name string, qtype uint16) (*DnsRequest, error) {
 	// Check that this is actually intended for us and not just some other domain
 	if !strings.HasSuffix(strings.ToLower(name), fmt.Sprintf("%s.", ds.rootDomain)) {
@@ -168,7 +177,7 @@ func (ds *DnsServer) parseRequest(name string, qtype uint16) (*DnsRequest, error
 
 		if k == 'r' {
 			req.realm, _ = strconv.Atoi(v)
-			if req.realm != ds.realm {
+			if !ds.supportedRealm(req.realm) {
 				return nil, fmt.Errorf("unsupported network")
 			}
 		} else if k == 'a' && qtype == dns.TypeSRV {
